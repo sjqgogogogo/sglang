@@ -31,6 +31,11 @@ class GraphInputBuffers:
     global_num_tokens_for_logprob_gpu: torch.Tensor
     encoder_lens: Optional[torch.Tensor]
     pp_proxy_tensors: Optional[Dict[str, torch.Tensor]]
+    ne_token_table: Optional[torch.Tensor]
+    ne_column_starts: Optional[torch.Tensor]
+    ne_req_lens: Optional[torch.Tensor]
+    ne_out_column_starts: Optional[torch.Tensor]
+    ne_out_req_lens: Optional[torch.Tensor]
 
     @classmethod
     def create(
@@ -51,11 +56,12 @@ class GraphInputBuffers:
         num_tokens_per_bs: int,
         cache_loc_dtype: torch.dtype,
         enable_mamba_track: bool,
+        ne_token_table: Optional[torch.Tensor] = None
     ) -> "GraphInputBuffers":
         with torch.device(device):
             input_ids = torch.zeros((max_num_token,), dtype=torch.int64)
             input_embeds = torch.zeros((max_num_token, hidden_size), dtype=dtype)
-            req_pool_indices = torch.zeros((max_bs,), dtype=torch.int32)
+            req_pool_indices = torch.zeros((max_bs,), dtype=torch.int64)
             seq_lens = torch.full((max_bs,), seq_len_fill_value, dtype=torch.int32)
             out_cache_loc = torch.zeros((max_num_token,), dtype=cache_loc_dtype)
             positions = torch.zeros((max_num_token,), dtype=torch.int64)
@@ -77,6 +83,10 @@ class GraphInputBuffers:
             mamba_track_mask = (
                 torch.zeros((max_bs,), dtype=torch.bool) if enable_mamba_track else None
             )
+            ne_column_starts = torch.zeros([max_bs], dtype=torch.int32) if ne_token_table is not None else None
+            ne_req_lens = torch.ones([max_bs], dtype=torch.int32) if ne_token_table is not None else None
+            ne_out_column_starts = torch.zeros([max_bs], dtype=torch.int32) if ne_token_table is not None else None
+            ne_out_req_lens = torch.ones([max_bs], dtype=torch.int32) if ne_token_table is not None else None
 
             if pp_size > 1:
                 pp_proxy_tensors = {
@@ -128,6 +138,11 @@ class GraphInputBuffers:
             global_num_tokens_gpu=global_num_tokens_gpu,
             global_num_tokens_for_logprob_gpu=global_num_tokens_for_logprob_gpu,
             pp_proxy_tensors=pp_proxy_tensors,
+            ne_token_table=ne_token_table,
+            ne_column_starts=ne_column_starts,
+            ne_req_lens=ne_req_lens,
+            ne_out_column_starts=ne_out_column_starts,
+            ne_out_req_lens=ne_out_req_lens,
         )
 
     def populate_from_forward_batch(
@@ -158,7 +173,9 @@ class GraphInputBuffers:
         self.seq_lens[:raw_bs].copy_(forward_batch.seq_lens)
         self.out_cache_loc[:raw_num_token].copy_(forward_batch.out_cache_loc)
         self.positions[:raw_num_token].copy_(forward_batch.positions)
-
+        if self.ne_token_table is not None:
+            self.ne_column_starts[:raw_bs].copy_(forward_batch.ne_column_starts)
+            self.ne_req_lens[:raw_bs].copy_(forward_batch.ne_req_lens)
         if (
             self.mamba_track_indices is not None
             and forward_batch.mamba_track_indices is not None
