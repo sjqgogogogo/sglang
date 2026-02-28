@@ -98,7 +98,6 @@ void compute_n_gram_ids(
     long* row_indices,                // [batch_size]
     int* column_starts,               // [batch_size]
     int* req_lens,                     // [batch_size]
-    int ignore_token_num,             // 有多少token需要被ignore
     int* ignore_tokens,               // [ignore_token_num]
  */
 void update_token_table(
