@@ -206,7 +206,7 @@ from sglang.srt.utils.hf_transformers_utils import (
 )
 from sglang.srt.utils.torch_memory_saver_adapter import TorchMemorySaverAdapter
 from sglang.utils import TypeBasedDispatcher, get_exception_traceback
-from sgl_kernel import update_token_table
+from sglang.jit_kernel.ngram_embedding import update_token_table
 
 logger = logging.getLogger(__name__)
 

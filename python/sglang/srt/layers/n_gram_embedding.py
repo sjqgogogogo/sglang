@@ -6,7 +6,7 @@ from sglang.srt.distributed import get_tensor_model_parallel_rank
 from sglang.srt.layers.dp_attention import is_dp_attention_enabled
 from sglang.srt.layers.vocab_parallel_embedding import VocabParallelEmbedding
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch, ForwardMode
-from sgl_kernel import compute_n_gram_ids
+from sglang.jit_kernel.ngram_embedding import compute_n_gram_ids
 
 from sglang.srt.server_args import get_global_server_args
 

@@ -175,7 +175,7 @@ from sglang.srt.utils.patch_torch import (
 )
 from sglang.srt.utils.torch_memory_saver_adapter import TorchMemorySaverAdapter
 from sglang.srt.utils.weight_checker import WeightChecker
-from sgl_kernel import update_token_table
+from sglang.jit_kernel.ngram_embedding import update_token_table
 from sglang.srt.weight_sync.tensor_bucket import (
     FlattenedTensorBucket,
     FlattenedTensorMetadata,
