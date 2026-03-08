@@ -504,11 +504,11 @@ class LongcatFlashModel(nn.Module):
         if config.use_ngram_embedding:
             self.use_ngram_embedding = True
             self.embed_tokens = NgramEmbedding(
-                num_embeddings = config.vocab_size,
-                embedding_dim = config.hidden_size,
-                over_embedding_m = config.ngram_embedding_m,
-                over_embedding_k = config.ngram_embedding_k,
-                over_embedding_n = config.ngram_embedding_n,
+                num_embeddings=config.vocab_size,
+                embedding_dim=config.hidden_size,
+                over_embedding_m=config.ngram_embedding_m,
+                over_embedding_k=config.ngram_embedding_k,
+                over_embedding_n=config.ngram_embedding_n,
             )
         else:
             self.use_ngram_embedding = False

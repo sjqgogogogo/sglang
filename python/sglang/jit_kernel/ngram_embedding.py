@@ -43,7 +43,7 @@ def compute_n_gram_ids(
         ne_k: k value for n-gram configurations
         ne_weights: weights tensor with shape [ne_n-1, ne_k, ne_n]
         ne_mods: mods tensor with shape [ne_n-1, ne_k]
-        exclusive_ne_embeder_size_sums: exclusive sum of embeder sizes
+        exclusive_ne_embeder_size_sums: exclusive sum of embedder sizes
         tokens: input token ids
         exclusive_req_len_sums: exclusive sum of request lengths
         ne_token_table: token table for all requests

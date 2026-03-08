@@ -20,6 +20,9 @@ class NgramEmbedding(torch.nn.Module):
         over_embedding_n: int,
     ):
         super().__init__()
+        assert (
+            over_embedding_n > 1
+        ), f"over_embedding_n must be > 1, got {over_embedding_n}"
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.over_embedding_m = over_embedding_m
@@ -149,7 +152,7 @@ class NgramEmbedding(torch.nn.Module):
                 ne_token_table=ngram_embedding_info.token_table,
                 row_indices=forward_batch.req_pool_indices,
                 column_starts=ngram_embedding_info.column_starts,
-                n_gram_ids=self.oe_n_gram_ids[: forward_batch.batch_size],
+                n_gram_ids=self.oe_n_gram_ids[: len(input_ids)],
             )
 
         # [13, seq_len, hidden_dim]
