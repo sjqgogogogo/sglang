@@ -130,10 +130,6 @@ class ModelConfig:
             model_override_args=self.model_override_args,
             **kwargs,
         )
-        if getattr(self.hf_config, 'use_ngram_embedding', False):
-            self.use_ngram_embedding = self.hf_config.use_ngram_embedding
-        else:
-            self.use_ngram_embedding = False
         self.hf_text_config = get_hf_text_config(self.hf_config)
         self.hf_generation_config = get_generation_config(
             self.model_path,
@@ -196,6 +192,7 @@ class ModelConfig:
         self.is_local_attention_model = is_local_attention_model(
             self.hf_config.architectures
         )
+        self.use_ngram_embedding = getattr(self.hf_config, "use_ngram_embedding", False)
         self.dtype = _get_and_verify_dtype(self.hf_text_config, dtype)
 
         # Derive context length and model shapes
