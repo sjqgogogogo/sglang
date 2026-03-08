@@ -603,9 +603,6 @@ class ModelRunner(ModelRunnerKVCacheMixin):
         # Init memory pool and attention backends
         self.init_memory_pool(pre_model_load_memory)
 
-        # Init ngram embedding token table
-        self.maybe_init_ngram_embedding()
-
         # Init max running requests
         self.max_running_requests = min(
             (
@@ -615,6 +612,9 @@ class ModelRunner(ModelRunnerKVCacheMixin):
             ),
             self.req_to_token_pool.size,
         )
+
+        # Init ngram embedding token table
+        self.maybe_init_ngram_embedding()
 
         # Init routed experts capturer
         self.init_routed_experts_capturer()
@@ -2125,12 +2125,23 @@ class ModelRunner(ModelRunnerKVCacheMixin):
     def maybe_init_ngram_embedding(self):
         self.use_ngram_embedding = self.model_config.use_ngram_embedding
         if self.use_ngram_embedding:
+            from sglang.srt.layers.n_gram_embedding import NgramEmbedding
+
             self.token_table = torch.empty(
                 self.req_to_token_pool.size,
                 self.model_config.context_len,
                 dtype=torch.int32,
                 device=self.device,
             )
+            chunked_prefill_size = self.server_args.chunked_prefill_size
+            assert (
+                chunked_prefill_size is not None and chunked_prefill_size > 0
+            ), "Ngram embedding requires chunked prefill to be enabled (chunked_prefill_size > 0)"
+            for module in self.model.modules():
+                if isinstance(module, NgramEmbedding):
+                    module.init_buffers(
+                        self.max_running_requests, chunked_prefill_size, self.device
+                    )
 
     def maybe_update_ngram_token_table(
         self,

@@ -6,7 +6,6 @@ from sglang.jit_kernel.ngram_embedding import compute_n_gram_ids
 from sglang.srt.layers.dp_attention import is_dp_attention_enabled
 from sglang.srt.layers.vocab_parallel_embedding import VocabParallelEmbedding
 from sglang.srt.model_executor.forward_batch_info import ForwardBatch
-from sglang.srt.server_args import get_global_server_args
 
 
 class NgramEmbedding(torch.nn.Module):
@@ -76,15 +75,18 @@ class NgramEmbedding(torch.nn.Module):
                 self.oe_mods[n - 2][k] = mod
                 for delta in range(self.over_embedding_n):
                     self.oe_weights[n - 2][k][delta] = pow(num_embeddings, delta, mod)
-        server_args = get_global_server_args()
-        device = server_args.device
+
+    def init_buffers(
+        self, max_running_requests: int, chunked_prefill_size: int, device: str
+    ):
+        max_tokens = max(chunked_prefill_size, max_running_requests)
         self.oe_n_gram_ids = torch.zeros(
-            [server_args.chunked_prefill_size, self.n_grams],
+            [max_tokens, self.n_grams],
             dtype=torch.int32,
             device=device,
         )
         self.exclusive_req_len_sums = torch.zeros(
-            server_args.max_running_requests + 1, dtype=torch.int32, device=device
+            max_running_requests + 1, dtype=torch.int32, device=device
         )
 
     def load_weight(
