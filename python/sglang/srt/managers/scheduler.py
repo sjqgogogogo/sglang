@@ -33,6 +33,7 @@ from torch.cuda import Stream as CudaStream
 from torch.cuda import StreamContext as CudaStreamContext
 from torch.distributed import barrier
 
+from sglang.jit_kernel.ngram_embedding import update_token_table
 from sglang.srt.configs.model_config import ModelConfig
 from sglang.srt.constrained.grammar_manager import GrammarManager
 from sglang.srt.disaggregation.decode import (
@@ -206,7 +207,6 @@ from sglang.srt.utils.hf_transformers_utils import (
 )
 from sglang.srt.utils.torch_memory_saver_adapter import TorchMemorySaverAdapter
 from sglang.utils import TypeBasedDispatcher, get_exception_traceback
-from sglang.jit_kernel.ngram_embedding import update_token_table
 
 logger = logging.getLogger(__name__)
 
@@ -990,8 +990,12 @@ class Scheduler(
         if self.tp_worker.model_config.use_ngram_embedding:
             self.use_ngram_embedding = True
             self.token_table = self.tp_worker.model_runner.token_table
-            self.ngram_embedding_n = self.tp_worker.model_config.hf_config.ngram_embedding_n
-            self.ngram_embedding_k = self.tp_worker.model_config.hf_config.ngram_embedding_k
+            self.ngram_embedding_n = (
+                self.tp_worker.model_config.hf_config.ngram_embedding_n
+            )
+            self.ngram_embedding_k = (
+                self.tp_worker.model_config.hf_config.ngram_embedding_k
+            )
         else:
             self.use_ngram_embedding = False
 
@@ -1900,8 +1904,8 @@ class Scheduler(
                         tokens = fill_ids[0:end]
                         column_starts.append(0)
                     else:
-                        # 需要补prefix_len往前数n-1个token
-                        tokens = fill_ids[start - self.ngram_embedding_n + 1: end]
+                        # Prepend n-1 tokens before prefix_len for n-gram context
+                        tokens = fill_ids[start - self.ngram_embedding_n + 1 : end]
                         column_starts.append(start - self.ngram_embedding_n + 1)
                     all_tokens.extend(tokens)
                     request_lengths.append(len(tokens))
@@ -1911,9 +1915,13 @@ class Scheduler(
                     ne_token_table=self.token_table,
                     tokens=torch.tensor(all_tokens, dtype=dtype, device=device),
                     row_indices=ret.req_pool_indices,
-                    column_starts=torch.tensor(column_starts, dtype=torch.int32, device=device),
-                    req_lens=torch.tensor(request_lengths, dtype=torch.int32, device=device),
-                    ignore_tokens=None
+                    column_starts=torch.tensor(
+                        column_starts, dtype=torch.int32, device=device
+                    ),
+                    req_lens=torch.tensor(
+                        request_lengths, dtype=torch.int32, device=device
+                    ),
+                    ignore_tokens=None,
                 )
 
         if ret:
