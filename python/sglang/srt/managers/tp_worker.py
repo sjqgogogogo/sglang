@@ -12,11 +12,12 @@
 # limitations under the License.
 # ==============================================================================
 """A tensor parallel worker."""
+
 from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 
 import torch
 
@@ -39,7 +40,11 @@ from sglang.srt.managers.schedule_batch import ModelWorkerBatch, ScheduleBatch
 from sglang.srt.managers.scheduler import GenerationBatchResult
 from sglang.srt.mem_cache.allocator import BaseTokenToKVPoolAllocator
 from sglang.srt.mem_cache.memory_pool import ReqToTokenPool
-from sglang.srt.model_executor.forward_batch_info import ForwardBatch, PPProxyTensors, ForwardMode
+from sglang.srt.model_executor.forward_batch_info import (
+    ForwardBatch,
+    ForwardMode,
+    PPProxyTensors,
+)
 from sglang.srt.server_args import ServerArgs
 from sglang.srt.utils import MultiprocessingSerializer, broadcast_pyobj, set_random_seed
 from sglang.srt.utils.hf_transformers_utils import (
@@ -48,6 +53,7 @@ from sglang.srt.utils.hf_transformers_utils import (
     get_tokenizer_from_processor,
 )
 from sglang.srt.utils.patch_torch import monkey_patch_torch_reductions
+from sglang.srt.weight_sync.tensor_bucket import FlattenedTensorBucket
 
 if TYPE_CHECKING:
     from sglang.srt.managers.cache_controller import LayerDoneCounter
@@ -186,7 +192,17 @@ class BaseTpWorker(ABC):
     ):
         # The LoRA code handles TP sharding internally using slice_lora_a_weights
         # and slice_lora_b_weights methods (see lora/layers.py:46-49, mem_pool.py:437-440).
-        tensors = MultiprocessingSerializer.deserialize(recv_req.serialized_tensors)
+        if recv_req.load_format == "flattened_bucket":
+            flattened_data = MultiprocessingSerializer.deserialize(
+                recv_req.serialized_tensors
+            )
+            bucket = FlattenedTensorBucket(
+                flattened_tensor=flattened_data["flattened_tensor"],
+                metadata=flattened_data["metadata"],
+            )
+            tensors = dict(bucket.reconstruct_tensors())
+        else:
+            tensors = MultiprocessingSerializer.deserialize(recv_req.serialized_tensors)
         result = self.model_runner.load_lora_adapter_from_tensors(
             recv_req.to_ref(),
             tensors,
@@ -212,6 +228,8 @@ class TpModelWorker(BaseTpWorker):
         tp_rank: int,
         moe_ep_rank: int,
         pp_rank: int,
+        attn_cp_rank: int,
+        moe_dp_rank: int,
         dp_rank: Optional[int],
         nccl_port: int,
         is_draft_worker: bool = False,
@@ -234,9 +252,11 @@ class TpModelWorker(BaseTpWorker):
         self.is_multi_layer_eagle = is_multi_layer_eagle
         self.req_to_token_pool = req_to_token_pool
         self.token_to_kv_pool_allocator = token_to_kv_pool_allocator
+        self.attn_cp_rank = attn_cp_rank
+        self.moe_dp_rank = moe_dp_rank
 
         # MTP model runners
-        self.model_runner_list = []
+        self.model_runner_list: List[ModelRunner] = []
 
         self._init_model_config()
         self._init_model_runner()
@@ -445,11 +465,17 @@ class TpModelWorker(BaseTpWorker):
             assert forward_batch is not None
         if self.model_runner.use_ngram_embedding:
             if forward_batch.forward_mode == ForwardMode.EXTEND:
-                forward_batch.ne_column_starts[:forward_batch.batch_size] = forward_batch.extend_prefix_lens
-                forward_batch.ne_req_lens[:forward_batch.batch_size] = forward_batch.extend_seq_lens
+                forward_batch.ne_column_starts[: forward_batch.batch_size] = (
+                    forward_batch.extend_prefix_lens
+                )
+                forward_batch.ne_req_lens[: forward_batch.batch_size] = (
+                    forward_batch.extend_seq_lens
+                )
             elif forward_batch.forward_mode == ForwardMode.DECODE:
-                forward_batch.ne_column_starts[:forward_batch.batch_size] = forward_batch.seq_lens - 1
-                forward_batch.ne_req_lens[:forward_batch.batch_size] = 1
+                forward_batch.ne_column_starts[: forward_batch.batch_size] = (
+                    forward_batch.seq_lens - 1
+                )
+                forward_batch.ne_req_lens[: forward_batch.batch_size] = 1
 
         if self.is_dllm():
             return self._forward_batch_generation_dllm(forward_batch)
