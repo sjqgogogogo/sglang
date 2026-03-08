@@ -392,7 +392,7 @@ class Scheduler(
         self.init_overlap()
 
         # Init Ngram Embedding
-        self.init_ngram_embedding()
+        self.maybe_init_ngram_embedding()
 
         # Init prefill kv split size when deterministic inference is enabled with various attention backends
         self.init_deterministic_inference_config()
@@ -1032,18 +1032,13 @@ class Scheduler(
         self.batch_record_buf = [None] * 2
         self.batch_record_ct = 0
 
-    def init_ngram_embedding(self):
-        if self.tp_worker.model_config.use_ngram_embedding:
-            self.use_ngram_embedding = True
+    def maybe_init_ngram_embedding(self):
+        self.use_ngram_embedding = self.tp_worker.model_config.use_ngram_embedding
+        if self.use_ngram_embedding:
             self.token_table = self.tp_worker.model_runner.token_table
-            self.ngram_embedding_n = (
-                self.tp_worker.model_config.hf_config.ngram_embedding_n
-            )
-            self.ngram_embedding_k = (
-                self.tp_worker.model_config.hf_config.ngram_embedding_k
-            )
-        else:
-            self.use_ngram_embedding = False
+            hf_config = self.tp_worker.model_config.hf_config
+            self.ngram_embedding_n = hf_config.ngram_embedding_n
+            self.ngram_embedding_k = hf_config.ngram_embedding_k
 
     def init_deterministic_inference_config(self):
         """Initialize deterministic inference configuration for different attention backends."""

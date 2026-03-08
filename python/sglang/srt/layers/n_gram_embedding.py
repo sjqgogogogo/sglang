@@ -129,8 +129,9 @@ class NgramEmbedding(torch.nn.Module):
             forward_batch.forward_mode.is_extend()
             or forward_batch.forward_mode.is_decode()
         ):
+            ngram_embedding_info = forward_batch.ngram_embedding_info
             torch.cumsum(
-                forward_batch.ne_req_lens,
+                ngram_embedding_info.req_lens,
                 dim=0,
                 dtype=torch.int32,
                 out=self.exclusive_req_len_sums[1 : 1 + forward_batch.batch_size],
@@ -145,9 +146,9 @@ class NgramEmbedding(torch.nn.Module):
                 exclusive_req_len_sums=self.exclusive_req_len_sums[
                     : forward_batch.batch_size + 1
                 ],
-                ne_token_table=forward_batch.ne_token_table,
+                ne_token_table=ngram_embedding_info.token_table,
                 row_indices=forward_batch.req_pool_indices,
-                column_starts=forward_batch.ne_column_starts,
+                column_starts=ngram_embedding_info.column_starts,
                 n_gram_ids=self.oe_n_gram_ids[: forward_batch.batch_size],
             )
 

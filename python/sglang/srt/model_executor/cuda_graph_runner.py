@@ -58,6 +58,7 @@ from sglang.srt.model_executor.forward_batch_info import (
     CaptureHiddenMode,
     ForwardBatch,
     ForwardMode,
+    NgramEmbeddingInfo,
     PPProxyTensors,
     compute_local_num_token_non_padded,
     enable_num_token_non_padded,
@@ -113,11 +114,7 @@ class DecodeInputBuffers(ForwardInputBuffers):
     global_num_tokens_for_logprob_gpu: torch.Tensor
     encoder_lens: Optional[torch.Tensor]
     pp_proxy_tensors: Optional[Dict[str, torch.Tensor]]
-    ne_token_table: Optional[torch.Tensor]
-    ne_column_starts: Optional[torch.Tensor]
-    ne_req_lens: Optional[torch.Tensor]
-    ne_out_column_starts: Optional[torch.Tensor]
-    ne_out_req_lens: Optional[torch.Tensor]
+    ngram_embedding_info: Optional["NgramEmbeddingInfo"]
 
     @classmethod
     def create(
@@ -190,23 +187,14 @@ class DecodeInputBuffers(ForwardInputBuffers):
                 global_num_tokens_gpu = torch.zeros((1,), dtype=torch.int32)
                 global_num_tokens_for_logprob_gpu = torch.zeros((1,), dtype=torch.int32)
 
-            ne_column_starts = (
-                torch.zeros([max_bs], dtype=torch.int32)
-                if ne_token_table is not None
-                else None
-            )
-            ne_req_lens = (
-                torch.ones([max_bs], dtype=torch.int32)
-                if ne_token_table is not None
-                else None
-            )
-            ne_out_column_starts = (
-                torch.zeros([max_bs], dtype=torch.int32)
-                if ne_token_table is not None
-                else None
-            )
-            ne_out_req_lens = (
-                torch.ones([max_bs], dtype=torch.int32)
+            ngram_embedding_info = (
+                NgramEmbeddingInfo(
+                    token_table=ne_token_table,
+                    column_starts=torch.zeros([max_bs], dtype=torch.int32),
+                    req_lens=torch.ones([max_bs], dtype=torch.int32),
+                    out_column_starts=torch.zeros([max_bs], dtype=torch.int32),
+                    out_req_lens=torch.ones([max_bs], dtype=torch.int32),
+                )
                 if ne_token_table is not None
                 else None
             )
@@ -237,11 +225,7 @@ class DecodeInputBuffers(ForwardInputBuffers):
             global_num_tokens_gpu=global_num_tokens_gpu,
             global_num_tokens_for_logprob_gpu=global_num_tokens_for_logprob_gpu,
             pp_proxy_tensors=pp_proxy_tensors,
-            ne_token_table=ne_token_table,
-            ne_column_starts=ne_column_starts,
-            ne_req_lens=ne_req_lens,
-            ne_out_column_starts=ne_out_column_starts,
-            ne_out_req_lens=ne_out_req_lens,
+            ngram_embedding_info=ngram_embedding_info,
         )
 
     def populate_from_forward_batch(
@@ -272,9 +256,15 @@ class DecodeInputBuffers(ForwardInputBuffers):
         self.seq_lens[:raw_bs].copy_(forward_batch.seq_lens)
         self.out_cache_loc[:raw_num_token].copy_(forward_batch.out_cache_loc)
         self.positions[:raw_num_token].copy_(forward_batch.positions)
-        if self.ne_token_table is not None:
-            self.ne_column_starts[:raw_bs].copy_(forward_batch.ne_column_starts)
-            self.ne_req_lens[:raw_bs].copy_(forward_batch.ne_req_lens)
+
+        if self.ngram_embedding_info is not None:
+            ngram_embedding_info = forward_batch.ngram_embedding_info
+            self.ngram_embedding_info.column_starts[:raw_bs].copy_(
+                ngram_embedding_info.column_starts
+            )
+            self.ngram_embedding_info.req_lens[:raw_bs].copy_(
+                ngram_embedding_info.req_lens
+            )
 
         if (
             self.mamba_track_indices is not None
@@ -806,17 +796,6 @@ class CudaGraphRunner:
         req_pool_indices = buffers.req_pool_indices[:bs]
         seq_lens = buffers.seq_lens[:bs]
         seq_lens_cpu = buffers.seq_lens_cpu[:bs]
-        ne_token_table = buffers.ne_token_table
-        ne_column_starts = (
-            buffers.ne_column_starts[:bs] if ne_token_table is not None else None
-        )
-        ne_req_lens = buffers.ne_req_lens[:bs] if ne_token_table is not None else None
-        ne_out_column_starts = (
-            buffers.ne_out_column_starts[:bs] if ne_token_table is not None else None
-        )
-        ne_out_req_lens = (
-            buffers.ne_out_req_lens[:bs] if ne_token_table is not None else None
-        )
         out_cache_loc = buffers.out_cache_loc[:num_tokens]
         positions = buffers.positions[:num_tokens]
         if self.is_encoder_decoder:
@@ -906,11 +885,6 @@ class CudaGraphRunner:
             req_pool_indices=req_pool_indices,
             seq_lens=seq_lens,
             seq_lens_cpu=seq_lens_cpu,
-            ne_token_table=ne_token_table,
-            ne_column_starts=ne_column_starts,
-            ne_req_lens=ne_req_lens,
-            ne_out_column_starts=ne_out_column_starts,
-            ne_out_req_lens=ne_out_req_lens,
             next_token_logits_buffer=next_token_logits_buffer,
             orig_seq_lens=seq_lens,
             req_to_token_pool=self.model_runner.req_to_token_pool,
@@ -936,6 +910,9 @@ class CudaGraphRunner:
             global_forward_mode=self.capture_forward_mode,
             lora_ids=lora_ids,
         )
+        if buffers.ngram_embedding_info is not None:
+            forward_batch.ngram_embedding_info = buffers.ngram_embedding_info.slice(bs)
+
         self.tbo_plugin.capture_one_batch_size(forward_batch, num_tokens=num_tokens)
 
         if lora_ids is not None:
