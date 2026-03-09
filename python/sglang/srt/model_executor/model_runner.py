@@ -603,6 +603,7 @@ class ModelRunner(ModelRunnerKVCacheMixin):
         # Init memory pool and attention backends
         self.init_memory_pool(pre_model_load_memory)
 
+<<<<<<< feature/support_longcat_flash_lite
         # Init max running requests
         self.max_running_requests = min(
             (
@@ -616,6 +617,8 @@ class ModelRunner(ModelRunnerKVCacheMixin):
         # Init ngram embedding token table
         self.maybe_init_ngram_embedding()
 
+=======
+>>>>>>> main
         # Init routed experts capturer
         self.init_routed_experts_capturer()
 
