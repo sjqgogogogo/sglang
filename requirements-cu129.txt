@@ -1,0 +1,6 @@
+# Run from the repository root in your activated Python 3.12 environment:
+#   python -m pip install -r requirements-cu129.txt
+# These indexes also supply the pinned cu129 torch wheel for build isolation.
+--extra-index-url https://download.pytorch.org/whl/cu129/
+--extra-index-url https://docs.sglang.ai/whl/cu129/
+-e ./python

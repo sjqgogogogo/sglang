@@ -3,7 +3,7 @@ requires = [
   "setuptools>=61.0",
   "setuptools-rust>=1.11",
   "setuptools-scm>=8.0",
-  "torch==2.13.0",
+  "torch==2.13.0+cu129",
   "wheel",
 ]
 build-backend = "setuptools.build_meta"
@@ -29,7 +29,7 @@ dependencies = [
   "blobfile==3.0.0",
   "build",
   "compressed-tensors==0.18.0",
-  "cuda-python>=13.0",
+  "cuda-python>=12,<13",
   # Transitive dep of flashinfer-python, pinned because 1.6.0rc6 shipped no cp310 linux x86_64 wheel.
   "cuda-tile==1.6.0rc5",
   "datasets",
@@ -38,10 +38,11 @@ dependencies = [
   "easydict",  # Required by remote model code (e.g. DeepSeek-OCR) loaded via trust_remote_code; validated by transformers 5.4+ check_imports
   "einops",
   "fastapi",
-  "flash-attn-4>=4.0.0b18",
-  "flashinfer_python[cu13]==0.6.18", # keep it aligned with jit-cache version in Dockerfile
+  # Newer FA4 releases require apache-tvm-ffi>=0.1.12, conflicting with this PR.
+  "flash-attn-4==4.0.0b19",
+  "flashinfer_python[cu12]==0.6.18",
   "gguf",
-  "humming-kernels[cu13]==0.1.12",
+  "humming-kernels[cu12]==0.1.12",
   "interegular",
   "IPython",
   "kernels>=0.14.1,<0.15",
@@ -52,7 +53,7 @@ dependencies = [
   "ninja",
   "numba==0.65.1",
   "numpy",
-  "nvidia-cutlass-dsl[cu13]==4.6.2",
+  "nvidia-cutlass-dsl==4.6.2",
   "nvidia-mathdx==25.6.0",
   "nvidia-ml-py",
   "openai==2.6.1",
@@ -74,9 +75,11 @@ dependencies = [
   "scipy",
   "sentencepiece",
   "setproctitle",
-  "sgl-deep-ep==0.1.2",
-  "sgl-deep-gemm==0.1.7",
-  "sglang-kernel==0.4.6.post1",
+  # CUDA 12 wheels are published on the SGLang index / GitHub releases.
+  # This deployment branch targets Linux x86_64 with Python 3.12.
+  "sgl-deep-ep==0.1.2+cu129",
+  "sgl-deep-gemm @ https://github.com/sgl-project/whl/releases/download/v0.1.7/sgl_deep_gemm-0.1.7+cu129-py3-none-manylinux2014_x86_64.whl",
+  "sglang-kernel @ https://github.com/sgl-project/whl/releases/download/v0.4.6.post1/sglang_kernel-0.4.6.post1+cu129-cp310-abi3-manylinux2014_x86_64.whl",
   "smg-grpc-servicer>=0.5.0",
   "soundfile==0.13.1",
   "tiktoken",
@@ -85,11 +88,11 @@ dependencies = [
   "tokenizers==0.22.2", # 0.23.0rc0 is incompatible with transformers' CLIPTokenizer.
   "tokenspeed_mla==0.1.8",
   "tomli ; python_version < '3.11'",
-  "torch==2.13.0",
+  "torch==2.13.0+cu129",
   "torch_memory_saver>=0.0.9.post1",
-  "torchaudio==2.11.0",
-  "torchcodec==0.15.0 ; sys_platform != 'linux' or (sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')", # Not available on Linux ARM.
-  "torchvision",
+  "torchaudio==2.11.0+cu129",
+  "torchcodec==0.15.0+cu129 ; sys_platform != 'linux' or (sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l')", # Not available on Linux ARM.
+  "torchvision==0.28.0+cu129",
   "tqdm",
   "transformers==5.12.1",
   "uvicorn",
