@@ -3,4 +3,8 @@
 # These indexes also supply the pinned cu129 torch wheel for build isolation.
 --extra-index-url https://download.pytorch.org/whl/cu129/
 --extra-index-url https://docs.sglang.ai/whl/cu129/
+# PyPI serves a wheel-stub sdist for cuda-tile. Let pip download the real wheel
+# with its own certificate handling instead of running the stub's urllib client.
+--extra-index-url https://pypi.nvidia.com/
+--only-binary=cuda-tile
 -e ./python

@@ -23,6 +23,20 @@ python -m pip install -r requirements-cu129.txt
 构建隔离；不需要手工预装 PyTorch、传 `--no-deps` 或修改依赖文件。
 首次安装会下载较大的 wheel 并编译 Rust 扩展。
 
+`cuda-tile` 从 NVIDIA 源直接安装二进制 wheel，不运行 PyPI 上的占位源码包。
+这样下载由 pip 处理，避免占位包使用独立的 Python `urllib` 证书配置导致
+`Preparing metadata` 阶段出现 `CERTIFICATE_VERIFY_FAILED`。
+如果 pip 本身仍报告证书错误，需要配置服务器信任的 CA 证书，例如：
+
+```bash
+# 改为服务器实际使用的 CA bundle，企业代理环境需包含企业根证书。
+export PIP_CERT=/path/to/ca-bundle.pem
+export SSL_CERT_FILE="$PIP_CERT"
+python -m pip install -r requirements-cu129.txt
+```
+
+不要通过关闭 TLS 证书校验来解决此问题。
+
 要求宿主机有兼容 CUDA 12.9 的 NVIDIA 驱动、CUDA 12.9 Toolkit（含 `nvcc`）、
 C/C++ 编译工具、Rust/cargo 和 `protoc`。Python 3.12.10、cargo/rustc 1.98.1、
 protoc 24.3 已具备这些工具，不必为了安装重复运行 `install_rust_protoc.sh`；
