@@ -19,6 +19,8 @@ python -m pip install -r requirements-cu129.txt
 ```
 
 `requirements-cu129.txt` 保存 wheel 下载源并执行 `-e ./python`。
+文件显式包含官方 PyPI 补充源，避免 pip 默认使用的内网镜像未同步
+`humming-kernels` 等包时出现 `No matching distribution found`。
 运行依赖与构建依赖中的 PyTorch 都固定为 `2.13.0+cu129`，保留 pip 默认的
 构建隔离；不需要手工预装 PyTorch、传 `--no-deps` 或修改依赖文件。
 首次安装会下载较大的 wheel 并编译 Rust 扩展。

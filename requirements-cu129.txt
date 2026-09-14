@@ -1,6 +1,8 @@
 # Run from the repository root in your activated Python 3.12 environment:
 #   python -m pip install -r requirements-cu129.txt
 # These indexes also supply the pinned cu129 torch wheel for build isolation.
+# Keep public PyPI available when pip's configured default is an incomplete mirror.
+--extra-index-url https://pypi.org/simple/
 --extra-index-url https://download.pytorch.org/whl/cu129/
 --extra-index-url https://docs.sglang.ai/whl/cu129/
 # PyPI serves a wheel-stub sdist for cuda-tile. Let pip download the real wheel
