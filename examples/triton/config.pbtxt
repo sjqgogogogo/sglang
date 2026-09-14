@@ -1,0 +1,19 @@
+name: "deepseek_v41"
+backend: "python"
+max_batch_size: 0
+model_transaction_policy { decoupled: true }
+instance_group [{ count: 1 kind: KIND_CPU }]
+input [
+  { name: "json_input" data_type: TYPE_STRING dims: [1] optional: true },
+  { name: "text_input" data_type: TYPE_STRING dims: [1] optional: true },
+  { name: "sampling_parameters" data_type: TYPE_STRING dims: [1] optional: true },
+  { name: "stream" data_type: TYPE_BOOL dims: [1] optional: true },
+  { name: "transfer_info" data_type: TYPE_STRING dims: [1] optional: true }
+]
+output [
+  { name: "json_output" data_type: TYPE_STRING dims: [1] },
+  { name: "text_output" data_type: TYPE_STRING dims: [1] },
+  { name: "finish_reason" data_type: TYPE_STRING dims: [1] },
+  { name: "input_length" data_type: TYPE_UINT32 dims: [1] },
+  { name: "sequence_length" data_type: TYPE_UINT32 dims: [1] }
+]

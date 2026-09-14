@@ -737,6 +737,9 @@ class DataParallelController:
 
         self.max_total_num_tokens = scheduler_info[0]["max_total_num_tokens"]
         self.max_req_input_len = scheduler_info[0]["max_req_input_len"]
+        # Preserve the representative worker's capacity/warmup information
+        # for embedded Engine consumers as well as the direct TP launch path.
+        self.scheduler_init_info = dict(scheduler_info[0])
         self.startup_time = aggregate_scheduler_startup_times(
             info.get("startup_time") for info in scheduler_info
         )
@@ -850,6 +853,7 @@ def run_data_parallel_controller_process(
         ]
         pipe_writer.send(
             {
+                **controller.scheduler_init_info,
                 "status": "ready",
                 "max_total_num_tokens": controller.max_total_num_tokens,
                 "max_req_input_len": controller.max_req_input_len,

@@ -405,6 +405,13 @@ class ServerArgs:
         ),
         NS("model"),
     ]
+    enable_fluent_router: A[
+        bool,
+        Arg(
+            help="Enable the embedded FluentRouter Triton backend's text and OpenAI compatibility boundary."
+        ),
+        NS("serving"),
+    ] = False
     tokenizer_path: A[Optional[str], "The path of the tokenizer.", NS("serving")] = None
     tokenizer_mode: A[
         str,

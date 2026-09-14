@@ -31,6 +31,7 @@ import signal
 import tempfile
 import threading
 import time
+from contextlib import aclosing
 from typing import (
     Any,
     AsyncIterator,
@@ -59,6 +60,10 @@ from sglang.srt.entrypoints.engine_info_bootstrap_server import (
 )
 from sglang.srt.entrypoints.engine_score_mixin import EngineScoreMixin
 from sglang.srt.entrypoints.EngineBase import EngineBase
+from sglang.srt.entrypoints.fluent_router import (
+    FluentRouterEngineMixin,
+    fluent_router_text_stream,
+)
 from sglang.srt.environ import envs
 from sglang.srt.managers.data_parallel_controller import (
     SCHEDULER_PIDS_ARG,
@@ -216,7 +221,7 @@ def init_tokenizer_manager(
     return tokenizer_manager, template_manager
 
 
-class Engine(EngineScoreMixin, EngineBase):
+class Engine(FluentRouterEngineMixin, EngineScoreMixin, EngineBase):
     """
     The entry point to the inference engine.
 
@@ -333,6 +338,13 @@ class Engine(EngineScoreMixin, EngineBase):
         except RuntimeError:
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
+
+        if server_args.enable_fluent_router:
+            try:
+                self._init_fluent_router()
+            except BaseException:
+                self.shutdown()
+                raise
 
     def get_all_child_pids(self) -> List[int]:
         """Returns a list of all child process PIDs."""
@@ -539,6 +551,12 @@ class Engine(EngineScoreMixin, EngineBase):
         The arguments of this function is the same as `sglang/srt/managers/io_struct.py::GenerateReqInput`.
         Please refer to `GenerateReqInput` for the documentation.
         """
+        if self.server_args.enable_fluent_router:
+            if not isinstance(prompt, str) or input_ids is not None:
+                raise ValueError("FluentRouter text_input requires one text prompt")
+            if sampling_params and sampling_params.get("n", 1) != 1:
+                raise ValueError("Use FluentRouter json_input for n > 1")
+
         routed_dp_rank = self._resolve_routed_dp_rank(
             routed_dp_rank, data_parallel_rank
         )
@@ -576,6 +594,12 @@ class Engine(EngineScoreMixin, EngineBase):
             priority=priority,
         )
         generator = self.tokenizer_manager.generate_request(obj, None)
+
+        if self.server_args.enable_fluent_router:
+            generator = fluent_router_text_stream(generator)
+            if not stream:
+                async with aclosing(generator):
+                    return await generator.__anext__()
 
         if stream is True:
             return generator

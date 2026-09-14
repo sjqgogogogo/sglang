@@ -1782,6 +1782,9 @@ class Scheduler(
             "status": "ready",
             "max_total_num_tokens": self.max_total_num_tokens,
             "max_req_input_len": self.max_req_input_len,
+            "max_running_requests": self.max_running_requests,
+            "chunked_prefill_size": self.chunked_prefill_size,
+            "context_length": self.model_config.context_len,
             "startup_time": self.startup_time,
         }
 
